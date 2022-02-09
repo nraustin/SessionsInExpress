@@ -6,7 +6,9 @@ const bookRoutes = require('./routes/book');
 const userRoutes = require('./routes/user');
 const session = require('express-session');
 const { sessionSecret } = require('./config');
-
+const { restoreUser, requireAuth } = require('./auth');
+const { asyncHandler } = require('./routes/utils');
+const db = require('./db/models');
 const app = express();
 
 app.set('view engine', 'pug');
@@ -21,8 +23,19 @@ app.use(session({
   saveUninitialized: false,
 }));
 app.use(express.urlencoded({ extended: false }));
-app.use(bookRoutes);
-app.use(userRoutes);
+app.use(restoreUser);
+
+
+app.get('/', requireAuth, asyncHandler(async (req, res) => {
+  const books = await db.Book.findAll({ where: { userId: res.locals.user.id }, order: [['title', 'ASC']] });
+  res.render('book-list', { title: 'Books', books });
+}));
+
+app.use('/book', bookRoutes);
+app.use('/user', userRoutes);
+
+
+
 
 // Catch unhandled requests and forward to error handler.
 app.use((req, res, next) => {

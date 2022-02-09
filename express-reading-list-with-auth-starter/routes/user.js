@@ -1,14 +1,20 @@
 const express = require('express');
 const { check, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
-const { loginUser } = require('../auth');
+const { loginUser, logoutUser } = require('../auth');
 
 const db = require('../db/models');
 const { csrfProtection, asyncHandler } = require('./utils');
 
 const router = express.Router();
 
-router.get('/user/register', csrfProtection, (req, res) => {
+router.post('/logout', (req, res) => {
+  logoutUser(req, res);
+  res.redirect('/user/login');
+});
+
+
+router.get('/register', csrfProtection, (req, res) => {
   const user = db.User.build();
   res.render('user-register', {
     title: 'Register',
@@ -65,7 +71,7 @@ const userValidators = [
 
 
 
-  router.post('/user/register', csrfProtection, userValidators,
+  router.post('/register', csrfProtection, userValidators,
   asyncHandler(async (req, res) => {
     const {
       emailAddress,
@@ -100,13 +106,13 @@ const userValidators = [
   }));
 
 
-  router.get('/user/login', csrfProtection, (req, res) => {
+  router.get('/login', csrfProtection, (req, res) => {
     res.render('user-login', {
       title: 'Login',
       csrfToken: req.csrfToken(),
     });
   });
-  
+
   const loginValidators = [
     check('emailAddress')
       .exists({ checkFalsy: true })
@@ -115,8 +121,8 @@ const userValidators = [
       .exists({ checkFalsy: true })
       .withMessage('Please provide a value for Password'),
   ];
-  
-  router.post('/user/login', csrfProtection, loginValidators,
+
+  router.post('/login', csrfProtection, loginValidators,
     asyncHandler(async (req, res) => {
       const {
         emailAddress,
@@ -125,7 +131,7 @@ const userValidators = [
 
       let errors = [];
       const validatorErrors = validationResult(req);
-  
+
       if (validatorErrors.isEmpty()) {
         const user = await db.User.findOne({ where: { emailAddress } });
 
@@ -133,7 +139,7 @@ const userValidators = [
             // If the user exists then compare their password
             // to the provided password.
             const passwordMatch = await bcrypt.compare(password, user.hashedPassword.toString());
-          
+
         if (passwordMatch) {
                 // If the password hashes match, then login the user
                 // and redirect them to the default route.
@@ -147,13 +153,13 @@ const userValidators = [
       } else {
         errors = validatorErrors.array().map((error) => error.msg);
       }
-  
+
       res.render('user-login', {
         title: 'Login',
         emailAddress,
         errors,
         csrfToken: req.csrfToken(),
       });
-    }));    
+    }));
 
 module.exports = router;
